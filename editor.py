@@ -2,52 +2,50 @@ import curses
 import file
 from cursor import Cursor
 
-
 #============================================================================
 # Class that represents the definitions of text objects
 # ---------------------------------------------------------------------------
 class TextObject(object):
 
     def word():
-        return TextObject(
-            from_start = lambda c : not c.is_sof and c.at_prev.isalnum(),
-            from_end   = lambda c : not c.is_eof and c.at.isalnum()
-            )
+        def find_object_start(c):
+#            while not c.is_sof and not c.at.isalnum() and c.at_prev.isspace():
+#                c.left()
+            while not c.is_sof and c.at_prev.isalnum():
+                c.left()
+            return c.pos
 
-    # TODO: Figure out how to specify alternate behavior for beginning on whitespace vs text
-    def word_sp():
-        return TextObject(
-            find_start = lambda c : not c.is_sof and (c.at_prev.isalnum() or c.at_prev == ' '),
-            find_end   = lambda c : not c.is_eof and (c.at.isalnum() or c.at == ' '),
-            from_start = lambda c : not c.is_sof and c.at_prev.isalnum(),
-            from_end   = lambda c : not c.is_eof and c.at.isalnum()
-            )
+        def find_object_end(c):
+            while not c.is_eof and not c.is_eol and c.at.isalnum():
+                c.right()
+            return c.pos
 
-    def __init__(self,
-            find_start = lambda c : False,
-            find_end   = lambda c : False,
-            from_start = lambda c : False,
-            from_end   = lambda c : False
+        return TextObject(find_object_start, find_object_end)
+
+    def __init__(
+            self,
+            find_start=[lambda c : c.pos],
+            find_end=[lambda c : c.pos]
             ):
         self.find_start = find_start
-        self.find_end   = find_end
-        self.from_start = from_start
-        self.from_end   = from_end
+        self.find_end = find_end
 
     def at(self, cursor):
-        start = Cursor(cursor.file, cursor.y, cursor.x, memory=False)
-        while self.find_start(start):
-            start.left() 
-        while self.from_start(start):
-            start.left() 
+        cursor.push()
+        start = self.find_start(cursor)
+        cursor.pop()
 
-        end = Cursor(cursor.file, cursor.y, cursor.x, memory=False)
-        while self.find_end(end):
-            end.right() 
-        while self.from_end(end):
-            end.right() 
+        cursor.push()
+        end = self.find_end(cursor)
+        cursor.pop()
 
-        return cursor.file.line(start.y)[start.x:end.x]
+        # TODO: This is giving different result than the snip; why?
+        r = ""
+        while start.x != end.x or start.y != end.y:
+            r += cursor.file.char_at(start.y, start.x)
+            start.right()
+
+        return r #cursor.file.snip(start, end)
 
 
 #============================================================================
@@ -59,7 +57,7 @@ class Editor(object):
         # Set member values
         self.screen = stdscr
         self.height, self.width = self.screen.getmaxyx()
-        self.file = file.TextFile("txt.py")
+        self.file = file.TextFile("editor.py")
         self.quit = False
         self.cursor = Cursor(self.file)
         self.status = ""
@@ -77,9 +75,10 @@ class Editor(object):
         if c == curses.KEY_DOWN: self.cursor.down()
         if c == ord('q'): self.quit = True
         if c == ord('w'): self.status = TextObject.word().at(self.cursor)
-        if c == ord('W'): self.status = TextObject.word_sp().at(self.cursor)
         if c == ord('l'): self.status = self.file.line(self.cursor.y)
         if c == ord('c'): self.status = self.cursor.at
+        if c == ord('p'): self.cursor.push()
+        if c == ord('P'): self.cursor.pop()
 
     def update_screen(self):
         for r in range(self.height-1):

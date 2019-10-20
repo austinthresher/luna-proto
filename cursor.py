@@ -1,68 +1,27 @@
+from copy import copy
+from file import TextPos
 #============================================================================
 # Cursor state and movement
 # ---------------------------------------------------------------------------
 
 #TODO push / pop / mark cursor state for more complex scripting
 
+
 class Cursor(object):
-    def __init__(self, file, y=0, x=0, memory=True):
-        self.file = file
-        self.line = y
-        self.char = x
-        # Remember previous x position when on shorter lines
-        self.memory = memory
-        self.mempos = 0
-        self.correct()
+    def __init__(self, file, y=0, x=0):
+        self.pos = TextPos(file, y, x)
+        self.pos.correct()
+        self.stack = []
+        self.marks = {}
 
-    def correct_y(self):
-        while not self.file.line_is_valid(self.y) and self.y > 0:
-            self.line -= 1
+    @property
+    def file(self): return self.pos.file
 
-    def correct_x(self):
-        while not self.file.char_is_valid(self.y, self.x):
-            self.char -= 1
+    @property
+    def y(self): return self.pos.y
 
-    def correct(self):
-        self.correct_y()
-        self.correct_x()
-
-    def remember(self):
-        self.mempos = self.x
-
-    def recall(self):
-        if not self.memory: return
-        while self.mempos > self.x and self.file.char_is_valid(self.y, self.x+1):
-            self.char += 1
-
-    def left(self):
-        if self.file.char_is_valid(self.y, self.x - 1):
-            self.char -= 1
-            self.remember()
-        elif self.file.line_is_valid(self.y - 1):
-            self.char = len(self.file.line(self.y-1))
-            self.remember()
-            self.up()
-
-    def right(self):
-        if self.file.char_is_valid(self.y, self.x + 1):
-            self.char += 1
-            self.remember()
-        elif self.file.line_is_valid(self.y + 1):
-            self.char = 0
-            self.remember()
-            self.down()
-
-    def up(self):
-        if self.file.line_is_valid(self.y - 1):
-            self.line -= 1
-            self.recall()
-            self.correct()
-
-    def down(self):
-        if self.file.line_is_valid(self.y + 1):
-            self.line += 1
-            self.recall()
-            self.correct()
+    @property
+    def x(self): return self.pos.x
 
     @property
     def is_sof(self):
@@ -79,33 +38,43 @@ class Cursor(object):
 
     @property
     def is_eol(self):
-        return self.x == len(self.file.line(self.y))
+        return self.at == '\n'
 
     @property
     def at(self):
-        line = self.file.line(self.y)
-        if self.x == len(line): return "\n" 
-        return self.file.line(self.y)[self.x]
+        return self.file.char_at(self.y, self.x)
 
     @property
     def at_prev(self):
-        self.left()
-        ans = self.at
-        self.right()
-        return ans
+        return self.file.char_at(self.y, self.x-1)
 
     @property
     def at_next(self):
-        self.right()
-        ans = self.at
-        self.left()
-        return ans
+        return self.file.char_at(self.y, self.x+1)
 
-    @property
-    def x(self): return self.char
+    def left(self):
+        return self.pos.left()
 
-    @property
-    def y(self): return self.line
+    def right(self):
+        return self.pos.right()
 
+    def up(self):
+        return self.pos.up()
 
+    def down(self):
+        return self.pos.down()
 
+    def push(self):
+        self.stack.append(copy(self.pos))
+
+    def pop(self):
+        if len(self.stack) > 0:
+            self.pos = self.stack.pop()
+            self.pos.correct()
+
+    def mark(self, tag):
+        self.marks[tag] = copy(self.pos)
+
+    def recall(self, tag):
+        if tag in self.marks:
+            self.pos = copy(self.marks[tag])
