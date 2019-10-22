@@ -52,8 +52,9 @@ class Snippet(object):
 
     @property
     def text(self):
-        return self.file.contents[self.start:self.end].decode('utf-8')
-        
+        return self.file.contents[self.start:self.end]
+
+
 #============================================================================
 # File being edited. Text is stored as a bytearray of characters. We keep
 # a list of newline locations to quickly navigate this array.
@@ -69,17 +70,17 @@ class TextFile(object):
 
     def open(self, filename):
         with open(filename) as o:
-            self.contents = bytearray(o.read().encode())
+            self.contents = o.read()
         self.cache_newlines()
 
     def cache_newlines(self):
         self.newlines = []
-        n = self.contents.find(ord('\n'))
+        n = self.contents.find('\n')
         while n != -1:
             self.newlines.append(n)
             if n+1 > len(self.contents):
                 break
-            n = self.contents.find(ord('\n'), n+1)
+            n = self.contents.find('\n', n+1)
 
     def line_is_valid(self, line_idx):
         return line_idx >= 0 and line_idx < len(self.newlines)
@@ -95,7 +96,7 @@ class TextFile(object):
         if not self.line_is_valid(line_idx): return "~"
         start = self.start_of_line(line_idx)
         end = self.end_of_line(line_idx)
-        return self.contents[start:end].decode()
+        return self.contents[start:end]
 
     def start_of_line(self, line_idx):
         if line_idx > 0: return 1 + self.newlines[line_idx - 1]
@@ -107,7 +108,7 @@ class TextFile(object):
 
     def char_at(self, line_idx, char_idx):
         if not self.char_is_valid(line_idx, char_idx): return ""
-        return chr(self.contents[self.start_of_line(line_idx) + char_idx])
+        return self.contents[self.start_of_line(line_idx) + char_idx]
 
     def snip(self, start_pos, end_pos):
         return Snippet(

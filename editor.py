@@ -1,5 +1,5 @@
 import curses
-import file
+import text
 from cursor import Cursor
 
 #============================================================================
@@ -9,8 +9,6 @@ class TextObject(object):
 
     def word():
         def find_object_start(c):
-#            while not c.is_sof and not c.at.isalnum() and c.at_prev.isspace():
-#                c.left()
             while not c.is_sof and c.at_prev.isalnum():
                 c.left()
             return c.pos
@@ -39,13 +37,7 @@ class TextObject(object):
         end = self.find_end(cursor)
         cursor.pop()
 
-        # TODO: This is giving different result than the snip; why?
-        r = ""
-        while start.x != end.x or start.y != end.y:
-            r += cursor.file.char_at(start.y, start.x)
-            start.right()
-
-        return r #cursor.file.snip(start, end)
+        return cursor.file.snip(start, end)
 
 
 #============================================================================
@@ -57,7 +49,7 @@ class Editor(object):
         # Set member values
         self.screen = stdscr
         self.height, self.width = self.screen.getmaxyx()
-        self.file = file.TextFile("editor.py")
+        self.file = text.TextFile("cursor.py")
         self.quit = False
         self.cursor = Cursor(self.file)
         self.status = ""
@@ -74,11 +66,19 @@ class Editor(object):
         if c == curses.KEY_UP: self.cursor.up()
         if c == curses.KEY_DOWN: self.cursor.down()
         if c == ord('q'): self.quit = True
-        if c == ord('w'): self.status = TextObject.word().at(self.cursor)
+        if c == ord('o'): self.status = TextObject.word().at(self.cursor).text
         if c == ord('l'): self.status = self.file.line(self.cursor.y)
         if c == ord('c'): self.status = self.cursor.at
         if c == ord('p'): self.cursor.push()
         if c == ord('P'): self.cursor.pop()
+        if c == ord('w'): self.cursor.next_space()
+        if c == ord('W'): self.cursor.prev_space()
+        if c == ord('a'): self.cursor.next_letter()
+        if c == ord('A'): self.cursor.prev_letter()
+        if c == ord('s'): self.cursor.next_symbol()
+        if c == ord('S'): self.cursor.prev_symbol()
+        if c == ord('d'): self.cursor.next_digit()
+        if c == ord('D'): self.cursor.prev_digit()
 
     def update_screen(self):
         for r in range(self.height-1):

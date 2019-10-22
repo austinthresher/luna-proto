@@ -1,10 +1,8 @@
 from copy import copy
-from file import TextPos
+from text import TextPos
 #============================================================================
 # Cursor state and movement
 # ---------------------------------------------------------------------------
-
-#TODO push / pop / mark cursor state for more complex scripting
 
 
 class Cursor(object):
@@ -78,3 +76,49 @@ class Cursor(object):
     def recall(self, tag):
         if tag in self.marks:
             self.pos = copy(self.marks[tag])
+
+    def right_while(self, condition):
+        while not self.is_eof and condition(self):
+            self.right()
+
+    def left_while(self, condition):
+        while not self.is_sof and condition(self):
+            self.left()
+
+    def do_while(self, condition, action):
+        action(self)
+        while condition(self):
+            action(self)
+
+    def next_space(self):
+        self.right_while(lambda c : c.at.isspace())
+        self.right_while(lambda c : not c.at.isspace())
+
+    def prev_space(self):
+        self.left_while(lambda c : c.at.isspace())
+        self.left_while(lambda c : not c.at.isspace())
+
+    def next_letter(self):
+        self.right_while(lambda c : c.at.isalpha())
+        self.right_while(lambda c : not c.at.isalpha())
+
+    def prev_letter(self):
+        self.left_while(lambda c : c.at.isalpha())
+        self.left_while(lambda c : not c.at.isalpha())
+
+    def next_symbol(self):
+        self.right_while(lambda c : not c.at.isalnum() and not c.at.isspace())
+        self.right_while(lambda c : c.at.isalnum() or c.at.isspace())
+
+    def prev_symbol(self):
+        self.left_while(lambda c : not c.at.isalnum() and not c.at.isspace())
+        self.left_while(lambda c : c.at.isalnum() or c.at.isspace())
+
+    def next_digit(self):
+        self.right_while(lambda c : c.at.isdigit())
+        self.right_while(lambda c : not c.at.isdigit())
+
+    def prev_digit(self):
+        self.left_while(lambda c : c.at.isdigit())
+        self.left_while(lambda c : not c.at.isdigit())
+
